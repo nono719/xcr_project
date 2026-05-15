@@ -2,6 +2,7 @@ import { Button, Card, List, Tag, Typography, message } from 'antd';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { coursesApi } from '../apis';
+import Markdown from '../components/Markdown';
 
 export default function CourseDetailPage() {
   const { id } = useParams();
@@ -62,9 +63,11 @@ export default function CourseDetailPage() {
               </Button>
             </div>
             <Tag color="blue">{active.type}</Tag>
-            <Typography.Paragraph className="mt-3 whitespace-pre-wrap">
-              {active.content || '（暂无内容）'}
-            </Typography.Paragraph>
+            <div className="mt-3">
+              {active.content
+                ? <Markdown source={active.content} />
+                : <Typography.Text type="secondary">（暂无内容）</Typography.Text>}
+            </div>
           </>
         ) : <div className="text-slate-400">请选择左侧章节</div>}
       </Card>

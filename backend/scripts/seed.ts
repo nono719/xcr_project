@@ -6,6 +6,52 @@ import { pool } from '../src/config/db';
 import { env } from '../src/config/env';
 
 const C = (p: string) => fs.readFileSync(path.resolve(__dirname, '..', 'contracts', p), 'utf-8');
+const D = (p: string) => fs.readFileSync(path.resolve(__dirname, '..', 'docs', p), 'utf-8');
+
+const COURSES = [
+  {
+    title: '智能合约安全入门',
+    description: '从 Solidity 语法到典型漏洞原理与防御实践，全流程入门',
+    severity: 'high',
+    difficulty: 'beginner',
+    orderNo: 1,
+    modules: [
+      ['区块链与智能合约速览',  D('courses/01-basics/01-overview.md')],
+      ['Solidity 语法基础',     D('courses/01-basics/02-solidity.md')],
+      ['EVM 与 Gas 机制',       D('courses/01-basics/03-evm.md')],
+      ['智能合约安全威胁概览',  D('courses/01-basics/04-threats.md')],
+      ['安全编码原则',          D('courses/01-basics/05-coding.md')],
+      ['经典攻击案例',          D('courses/01-basics/06-cases.md')],
+    ],
+  },
+  {
+    title: '五大漏洞深度剖析',
+    description: '深入解析重入、整数溢出、抢先交易、DoS、tx.origin 鉴权五类核心漏洞',
+    severity: 'critical',
+    difficulty: 'intermediate',
+    orderNo: 2,
+    modules: [
+      ['重入攻击 (Reentrancy)',         D('courses/02-vulns/01-reentrancy.md')],
+      ['整数溢出与精度损失',            D('courses/02-vulns/02-overflow.md')],
+      ['抢先交易与 MEV',                D('courses/02-vulns/03-frontrunning.md')],
+      ['拒绝服务 (DoS) 攻击',           D('courses/02-vulns/04-dos.md')],
+      ['tx.origin 与访问控制',          D('courses/02-vulns/05-txorigin.md')],
+    ],
+  },
+  {
+    title: '审计与防御实战',
+    description: '从审计流程到工具链 (Slither/Mythril/Echidna)、设计模式与上线 checklist',
+    severity: 'high',
+    difficulty: 'advanced',
+    orderNo: 3,
+    modules: [
+      ['审计的思路与流程',                          D('courses/03-audit/01-workflow.md')],
+      ['工具链：Slither / Mythril / Echidna',       D('courses/03-audit/02-tools.md')],
+      ['安全设计模式',                              D('courses/03-audit/03-patterns.md')],
+      ['上线前 Checklist',                          D('courses/03-audit/04-checklist.md')],
+    ],
+  },
+];
 
 const CASES = [
   {
@@ -96,26 +142,32 @@ async function main() {
     const [[teacher]] = await conn.query<any[]>("SELECT userId FROM user WHERE username='teacher01'");
     const teacherId = teacher?.userId ?? 1;
 
-    const [coursesExist] = await conn.query<any[]>('SELECT COUNT(*) AS n FROM course');
-    if (coursesExist[0].n === 0) {
-      const [r1] = await conn.query<any>(
-        `INSERT INTO course(title,description,teacherId,severity,difficulty,orderNo,status)
-         VALUES(?,?,?,?,?,?,1)`,
-        ['智能合约安全入门', '从 Solidity 语法到典型漏洞原理与防御实践', teacherId, 'high', 'beginner', 1]);
-      const courseId = r1.insertId;
-      const modules = [
-        ['Solidity 基础语法', '合约结构 / 数据类型 / 函数可见性 ...', 'text', 1],
-        ['EVM 与 Gas 模型', '执行模型、calldata、storage 与 Gas 计算', 'text', 2],
-        ['重入攻击原理与防御', '调用栈 / 跨函数重入 / Checks-Effects-Interactions', 'text', 3],
-        ['整数溢出与 SafeMath', 'Solidity 0.8 内置溢出检查与 unchecked', 'text', 4],
-        ['抢先交易与提交揭示', 'commit-reveal 模式与 MEV 缓解', 'text', 5],
-      ];
-      for (const [title, content, type, orderNo] of modules) {
+    // upsert courses + modules by title
+    for (const c of COURSES) {
+      const [existsCourse] = await conn.query<any[]>(
+        'SELECT courseId FROM course WHERE title=? LIMIT 1', [c.title]);
+      let courseId: number;
+      if (existsCourse.length) {
+        courseId = existsCourse[0].courseId;
+        await conn.query(
+          `UPDATE course SET description=?,severity=?,difficulty=?,orderNo=?,status=1,teacherId=? WHERE courseId=?`,
+          [c.description, c.severity, c.difficulty, c.orderNo, teacherId, courseId]);
+      } else {
+        const [r] = await conn.query<any>(
+          `INSERT INTO course(title,description,teacherId,severity,difficulty,orderNo,status)
+           VALUES(?,?,?,?,?,?,1)`,
+          [c.title, c.description, teacherId, c.severity, c.difficulty, c.orderNo]);
+        courseId = r.insertId;
+      }
+      // clear and re-insert modules to keep order tidy
+      await conn.query('DELETE FROM course_module WHERE courseId=?', [courseId]);
+      for (let i = 0; i < c.modules.length; i++) {
+        const [title, content] = c.modules[i];
         await conn.query(
           'INSERT INTO course_module(courseId,title,content,type,orderNo) VALUES(?,?,?,?,?)',
-          [courseId, title, content, type, orderNo]);
+          [courseId, title, content, 'text', i + 1]);
       }
-      console.log('seeded course #1 with 5 modules');
+      console.log(`upserted course "${c.title}" with ${c.modules.length} modules`);
     }
 
     // upsert by name —— 允许重复运行 seed 来刷新案例代码/描述
