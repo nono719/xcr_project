@@ -34,12 +34,13 @@ const ZERO_DETAIL: EvalDetail = {
   defended: { pass: false, message: '未执行' },
 };
 
+// 满分 100：attack 模式由 triggered 决定主分，fix 模式由 defended 决定主分
 const SCORE_WEIGHT = {
   compile: 10,
   deploy: 10,
   execute: 10,
-  triggered: 35, // attack-mode primary
-  defended: 35,  // fix-mode primary
+  triggered: 70, // attack 模式主分
+  defended: 70,  // fix 模式主分
 };
 
 export async function evaluate(spec: CaseSpec): Promise<EvalResult> {
@@ -152,7 +153,7 @@ export async function evaluate(spec: CaseSpec): Promise<EvalResult> {
       detail.deploy = { pass: false, message: (e as Error).message };
     }
   } finally {
-    destroySandbox(sb.id);
+    await destroySandbox(sb.id);
   }
 
   return finalize(detail, score, total, spec.swcId);

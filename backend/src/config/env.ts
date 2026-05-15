@@ -24,9 +24,9 @@ export const env = {
     saltRounds: Number(process.env.BCRYPT_SALT_ROUNDS ?? 10),
   },
   ganache: {
-    bin: process.env.GANACHE_BIN ?? 'ganache',
-    portBase: Number(process.env.GANACHE_PORT_BASE ?? 8600),
-    portRange: Number(process.env.GANACHE_PORT_RANGE ?? 200),
+    // 共享链 RPC（Ganache GUI Quickstart 默认 7545）
+    rpcUrl: process.env.GANACHE_RPC_URL ?? 'http://127.0.0.1:7545',
+    port: Number(process.env.GANACHE_PORT ?? 7545),
     idleTtlMs: Number(process.env.SANDBOX_IDLE_TTL_MS ?? 900_000),
   },
   solc: {

@@ -25,6 +25,7 @@ export function compileSolidity(source: string, filename = 'Contract.sol'): Comp
     sources: { [filename]: { content: source } },
     settings: {
       optimizer: { enabled: true, runs: 200 },
+      evmVersion: 'paris', // Ganache GUI 2.7.1 不支持 Shanghai PUSH0
       outputSelection: {
         '*': { '*': ['abi', 'evm.bytecode.object'] },
       },

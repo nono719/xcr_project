@@ -40,7 +40,7 @@ router.post('/start', authRequired, async (req, res, next) => {
       sandboxId: sb.id,
       rpcUrl: sb.rpcUrl,
       port: sb.port,
-      accounts: sb.accounts.map((a) => ({ address: a.address, privateKey: a.privateKey })),
+      accounts: sb.accounts.map((a) => ({ address: a.address })),
     });
   } catch (e) { next(e); }
 });
@@ -50,7 +50,7 @@ router.post('/stop', authRequired, async (req, res, next) => {
     const schema = Joi.object({ sandboxId: Joi.string().required() });
     const { error, value } = schema.validate(req.body);
     if (error) throw new ApiError(400, error.message);
-    const okStop = destroySandbox(value.sandboxId);
+    const okStop = await destroySandbox(value.sandboxId);
     return ok(res, { stopped: okStop });
   } catch (e) { next(e); }
 });

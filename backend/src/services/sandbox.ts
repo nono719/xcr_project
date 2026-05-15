@@ -1,90 +1,66 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'child_process';
 import { Web3 } from 'web3';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 
+/**
+ * 共享链模式（适配 Ganache GUI / 单一 RPC 端点）
+ * - 不为每个实验启动子进程
+ * - 通过 evm_snapshot / evm_revert 在共享链上做逻辑隔离
+ * - 账户来自 Ganache 工作区，私钥由 RPC 节点托管（accounts 已 unlock）
+ */
+export interface SandboxAccount {
+  address: string;
+  privateKey?: string; // 仅在 Ganache 通过 personal_listAccounts/真实私钥可知时填充
+}
+
 export interface Sandbox {
   id: string;
-  port: number;
   rpcUrl: string;
-  accounts: { address: string; privateKey: string }[];
-  proc: ChildProcessWithoutNullStreams;
+  port: number;
+  snapshotId?: string;
+  accounts: SandboxAccount[];
   createdAt: number;
   lastActiveAt: number;
 }
 
 const sandboxes = new Map<string, Sandbox>();
-const usedPorts = new Set<number>();
 
-function pickPort(): number {
-  for (let i = 0; i < env.ganache.portRange; i++) {
-    const p = env.ganache.portBase + i;
-    if (!usedPorts.has(p)) return p;
+async function rpc<T = unknown>(w3: Web3, method: string, params: unknown[] = []): Promise<T | undefined> {
+  try {
+    const r: any = await (w3.currentProvider as any).request({ method, params });
+    return (typeof r === 'object' && r !== null && 'result' in r ? r.result : r) as T;
+  } catch (e) {
+    logger.debug(`rpc ${method} failed`, { err: (e as Error).message });
+    return undefined;
   }
-  throw new Error('No free port for Ganache');
 }
 
-const DEFAULT_KEYS = [
-  '0x4f3edf983ac636a65a842ce7c78d9aa706d3b113bce9c46f30d7d21715b23b1d',
-  '0x6cbed15c793ce57650b9877cf6fa156fbef513c4e6134f022a85b1ffdd59b2a1',
-  '0x6370fd033278c143179d81c5526140625662b8daa446c22ee2d73db3707e620c',
-  '0x646f1ce2fdad0e6deeeb5c7e8e5543bdde65e86029e2fd9fc169899c440a7913',
-  '0xadd53f9a7e588d003326d1cbf9e4a43c061aadd9bc938c843a79e7b4fd2ad743',
-];
-
 export async function createSandbox(userId: number): Promise<Sandbox> {
-  const port = pickPort();
-  usedPorts.add(port);
-  const id = `sb-${userId}-${port}-${Date.now()}`;
-
-  const args = [
-    '--server.host', '127.0.0.1',
-    '--server.port', String(port),
-    '--chain.networkId', String(1337 + (port - env.ganache.portBase)),
-    '--chain.chainId', '1337',
-    '--wallet.accounts',
-    ...DEFAULT_KEYS.map((k) => `${k},100000000000000000000`),
-    '--logging.quiet', 'true',
-  ];
-
-  const proc = spawn(env.ganache.bin, args, { stdio: ['ignore', 'pipe', 'pipe'] });
-  proc.stdout.on('data', (d) => logger.debug(`[${id}] ${d.toString().trim()}`));
-  proc.stderr.on('data', (d) => logger.debug(`[${id} err] ${d.toString().trim()}`));
-  proc.on('exit', (code) => {
-    logger.info(`Ganache ${id} exited`, { code });
-    usedPorts.delete(port);
-    sandboxes.delete(id);
-  });
-
-  // Wait until JSON-RPC is reachable
-  const rpcUrl = `http://127.0.0.1:${port}`;
+  const rpcUrl = env.ganache.rpcUrl;
   const w3 = new Web3(rpcUrl);
-  const start = Date.now();
-  while (Date.now() - start < 15_000) {
-    try {
-      await w3.eth.net.getId();
-      break;
-    } catch {
-      await new Promise((r) => setTimeout(r, 250));
-    }
+  try {
+    await w3.eth.net.getId();
+  } catch (e) {
+    throw new Error(`无法连接 Ganache RPC ${rpcUrl}，请先在 Ganache GUI 启动 Quickstart`);
   }
 
-  const accounts = DEFAULT_KEYS.map((pk) => ({
-    address: w3.eth.accounts.privateKeyToAccount(pk).address,
-    privateKey: pk,
-  }));
+  const id = `sb-${userId}-${Date.now()}`;
+  const snapshotId = await rpc<string>(w3, 'evm_snapshot', []);
+
+  const addresses = await w3.eth.getAccounts();
+  const accounts: SandboxAccount[] = addresses.slice(0, 5).map((address) => ({ address }));
 
   const sb: Sandbox = {
     id,
-    port,
     rpcUrl,
+    port: env.ganache.port,
+    snapshotId,
     accounts,
-    proc,
     createdAt: Date.now(),
     lastActiveAt: Date.now(),
   };
   sandboxes.set(id, sb);
-  logger.info('sandbox created', { id, port });
+  logger.info('sandbox created (shared chain)', { id, snapshotId, accounts: addresses.length });
   return sb;
 }
 
@@ -94,14 +70,17 @@ export function getSandbox(id: string): Sandbox | undefined {
   return sb;
 }
 
-export function destroySandbox(id: string): boolean {
+export async function destroySandbox(id: string): Promise<boolean> {
   const sb = sandboxes.get(id);
   if (!sb) return false;
-  try {
-    sb.proc.kill('SIGKILL');
-  } catch {/* noop */}
+  if (sb.snapshotId) {
+    try {
+      const w3 = new Web3(sb.rpcUrl);
+      await rpc(w3, 'evm_revert', [sb.snapshotId]);
+    } catch {/* ignore */}
+  }
   sandboxes.delete(id);
-  usedPorts.delete(sb.port);
+  logger.info('sandbox destroyed', { id });
   return true;
 }
 
@@ -116,7 +95,7 @@ setInterval(() => {
   for (const sb of sandboxes.values()) {
     if (now - sb.lastActiveAt > env.ganache.idleTtlMs) {
       logger.info('sandbox idle gc', { id: sb.id });
-      destroySandbox(sb.id);
+      destroySandbox(sb.id).catch(() => {/* ignore */});
     }
   }
 }, 60_000).unref();
