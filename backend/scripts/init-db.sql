@@ -108,6 +108,23 @@ CREATE TABLE IF NOT EXISTS assignment (
   KEY idx_teacher (teacherId)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- 作业提交表
+CREATE TABLE IF NOT EXISTS assignment_submission (
+  submissionId INT PRIMARY KEY AUTO_INCREMENT,
+  assignmentId INT NOT NULL,
+  studentId INT NOT NULL,
+  content TEXT COMMENT '学生提交的文字答案 / 实验心得',
+  experimentRecordId INT NULL COMMENT '可关联一次评测记录',
+  score INT NULL COMMENT '教师评分',
+  feedback TEXT COMMENT '教师反馈',
+  status ENUM('submitted','graded','returned') NOT NULL DEFAULT 'submitted',
+  submittedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  gradedAt DATETIME NULL,
+  UNIQUE KEY uq_assign_student (assignmentId, studentId),
+  KEY idx_student (studentId),
+  KEY idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- 通知表
 CREATE TABLE IF NOT EXISTS notification (
   notiId BIGINT PRIMARY KEY AUTO_INCREMENT,

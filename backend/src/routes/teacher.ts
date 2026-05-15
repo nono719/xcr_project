@@ -140,4 +140,59 @@ router.post('/assignments', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+/** 教师：查看某作业的全员提交情况（含未提交） */
+router.get('/assignments/:id/submissions', async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const [arows] = await pool.query<any[]>(
+      `SELECT a.*, c.name AS caseName, c.vulnType, co.title AS courseName
+       FROM assignment a
+       LEFT JOIN vulnerability_case c ON c.caseId = a.caseId
+       LEFT JOIN course co ON co.courseId = a.courseId
+       WHERE a.assignmentId = ?`, [id]);
+    if (!arows.length) throw new ApiError(404, '作业不存在');
+
+    const [rows] = await pool.query<any[]>(
+      `SELECT u.userId, u.username, u.email,
+              s.submissionId, s.content, s.experimentRecordId, s.score, s.feedback,
+              s.status, s.submittedAt, s.gradedAt,
+              r.recordId AS expRecordId, r.score AS expScore, r.result AS expResult,
+              r.mode AS expMode, r.submitTime AS expSubmitTime
+       FROM user u
+       LEFT JOIN assignment_submission s
+         ON s.assignmentId = ? AND s.studentId = u.userId
+       LEFT JOIN experiment_record r ON r.recordId = s.experimentRecordId
+       WHERE u.role = 'student' AND u.status = 0
+       ORDER BY (s.submissionId IS NULL), s.submittedAt DESC, u.userId ASC`,
+      [id]);
+
+    const submitted = rows.filter((r) => r.submissionId).length;
+    const total = rows.length;
+    return ok(res, {
+      assignment: arows[0],
+      stats: { total, submitted, missing: total - submitted },
+      submissions: rows,
+    });
+  } catch (e) { next(e); }
+});
+
+/** 教师：评分 / 反馈 */
+router.post('/submissions/:id/grade', async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const score = req.body?.score === null || req.body?.score === undefined
+      ? null : Number(req.body.score);
+    const feedback = req.body?.feedback ? String(req.body.feedback) : null;
+    if (score !== null && (isNaN(score) || score < 0 || score > 100)) {
+      throw new ApiError(400, '分数应在 0-100');
+    }
+    await pool.query(
+      `UPDATE assignment_submission
+       SET score=?, feedback=?, status='graded', gradedAt=NOW()
+       WHERE submissionId=?`,
+      [score, feedback, id]);
+    return ok(res, { updated: true });
+  } catch (e) { next(e); }
+});
+
 export default router;

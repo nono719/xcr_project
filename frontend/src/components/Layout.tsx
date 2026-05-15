@@ -2,7 +2,8 @@ import { Avatar, Dropdown, Layout as AntLayout, Menu } from 'antd';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   AppstoreOutlined, BookOutlined, ExperimentOutlined, FileTextOutlined,
-  HomeOutlined, LogoutOutlined, SettingOutlined, TeamOutlined, UserOutlined,
+  HomeOutlined, LogoutOutlined, ProfileOutlined, SettingOutlined,
+  TeamOutlined, UserOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../hooks/useAuth';
 import NotificationBell from './NotificationBell';
@@ -18,6 +19,7 @@ export default function MainLayout() {
     { key: '/', icon: <HomeOutlined />, label: <Link to="/">首页</Link> },
     { key: '/courses', icon: <BookOutlined />, label: <Link to="/courses">课程学习</Link> },
     { key: '/experiments', icon: <ExperimentOutlined />, label: <Link to="/experiments">漏洞实验</Link> },
+    { key: '/assignments', icon: <ProfileOutlined />, label: <Link to="/assignments">我的作业</Link> },
     { key: '/records', icon: <FileTextOutlined />, label: <Link to="/records">我的提交</Link> },
   ];
   if (user?.role === 'teacher' || user?.role === 'admin') {

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { teacherApi } from '../apis';
 import NotificationCompose from '../components/teacher/NotificationCompose';
 import AssignmentCompose from '../components/teacher/AssignmentCompose';
+import SubmissionsDrawer from '../components/teacher/SubmissionsModal';
 
 export default function TeacherDashboardPage() {
   const [tab, setTab] = useState('overview');
@@ -12,6 +13,7 @@ export default function TeacherDashboardPage() {
   const [editing, setEditing] = useState<any | null>(null);
   const [form] = Form.useForm();
   const [assignments, setAssignments] = useState<any[]>([]);
+  const [viewing, setViewing] = useState<number | null>(null);
 
   const load = (k: string) => {
     if (k === 'overview') teacherApi.overview().then((r) => setOverview(r.data));
@@ -96,7 +98,17 @@ export default function TeacherDashboardPage() {
                       title: '发布时间', dataIndex: 'createTime', width: 170,
                       render: (v) => new Date(v).toLocaleString(),
                     },
+                    {
+                      title: '操作', width: 130,
+                      render: (_, r) => (
+                        <a onClick={() => setViewing(r.assignmentId)}>查看提交</a>
+                      ),
+                    },
                   ]}
+                />
+                <SubmissionsDrawer
+                  assignmentId={viewing}
+                  onClose={() => setViewing(null)}
                 />
               </Card>
             </Space>

@@ -54,8 +54,19 @@ export const teacherApi = {
   deleteCase: (id: number) => api.delete(`/teacher/cases/${id}`).then((r) => r.data),
   assignments: () => api.get('/teacher/assignments').then((r) => r.data),
   postAssignment: (data: any) => api.post('/teacher/assignments', data).then((r) => r.data),
+  assignmentSubmissions: (assignmentId: number) =>
+    api.get(`/teacher/assignments/${assignmentId}/submissions`).then((r) => r.data),
+  gradeSubmission: (submissionId: number, data: { score?: number | null; feedback?: string }) =>
+    api.post(`/teacher/submissions/${submissionId}/grade`, data).then((r) => r.data),
   broadcast: (data: { title: string; content?: string; link?: string; recipients?: number[] | 'all' }) =>
     api.post('/teacher/notifications/broadcast', data).then((r) => r.data),
+};
+
+export const assignmentsApi = {
+  myAssignments: () => api.get('/assignments/me').then((r) => r.data),
+  detail: (id: number) => api.get(`/assignments/${id}`).then((r) => r.data),
+  submit: (id: number, data: { content?: string; experimentRecordId?: number | null }) =>
+    api.post(`/assignments/${id}/submit`, data).then((r) => r.data),
 };
 
 export const adminApi = {

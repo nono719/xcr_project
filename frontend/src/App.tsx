@@ -11,6 +11,8 @@ import ExperimentListPage from './pages/ExperimentListPage';
 import ExperimentPage from './pages/ExperimentPage';
 import RecordsPage from './pages/RecordsPage';
 import ReportPage from './pages/ReportPage';
+import MyAssignmentsPage from './pages/MyAssignmentsPage';
+import AssignmentDetailPage from './pages/AssignmentDetailPage';
 import ProfilePage from './pages/ProfilePage';
 import TeacherDashboardPage from './pages/TeacherDashboardPage';
 import AdminPage from './pages/AdminPage';
@@ -33,6 +35,8 @@ export default function App() {
             <Route path="experiments/:id" element={<ExperimentPage />} />
             <Route path="records" element={<RecordsPage />} />
             <Route path="report/:id" element={<ReportPage />} />
+            <Route path="assignments" element={<MyAssignmentsPage />} />
+            <Route path="assignments/:id" element={<AssignmentDetailPage />} />
             <Route path="profile" element={<ProfilePage />} />
             <Route
               path="teacher"
