@@ -1,8 +1,10 @@
-import { Alert, Button, Card, Col, Descriptions, Divider, Modal, Radio, Row, Space, Tag, Typography, message } from 'antd';
+import { Alert, Button, Card, Col, Collapse, Descriptions, Divider, List, Modal, Radio, Row, Space, Tag, Typography, message } from 'antd';
+import { CheckCircleTwoTone } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import MonacoIDE from '../components/MonacoIDE';
 import { evaluationApi, experimentsApi } from '../apis';
+import { getCriteria } from '../data/criteria';
 
 const STARTER_ATTACK = `// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
@@ -94,6 +96,8 @@ export default function ExperimentPage() {
     } finally { setBusy(false); }
   };
 
+  const crit = c?.vulnType ? getCriteria(c.vulnType) : undefined;
+
   return (
     <div className="space-y-4">
       <Card>
@@ -121,6 +125,70 @@ export default function ExperimentPage() {
           </Col>
         </Row>
       </Card>
+
+      {crit && (
+        <Card
+          title={
+            <span>
+              <CheckCircleTwoTone twoToneColor="#52c41a" /> {' '}
+              通过条件 / 评分规则
+              <Tag color="green" style={{ marginLeft: 8 }}>必看</Tag>
+            </span>
+          }
+          extra={<span className="text-xs text-slate-400">链上事实判定，不仅检查代码能否编译</span>}
+        >
+          <Alert
+            type="warning" showIcon className="mb-3"
+            message={'只满足「编译 + 部署 + 攻击交易执行」最多得 30 分；剩余 70 分必须在链上看到漏洞实际被触发。'}
+          />
+          <Typography.Paragraph type="secondary" className="!mb-3">{crit.intro}</Typography.Paragraph>
+
+          <Collapse
+            defaultActiveKey={['rubric']}
+            items={[
+              {
+                key: 'rubric',
+                label: <span><Tag color="processing">评分项</Tag>每一项的权重和判定条件</span>,
+                children: (
+                  <List
+                    size="small"
+                    dataSource={crit.rubric}
+                    renderItem={(it) => (
+                      <List.Item>
+                        <div className="flex w-full justify-between gap-3">
+                          <div>
+                            <span className="font-medium">{it.name}</span>
+                            <Tag color="blue" style={{ marginLeft: 8 }}>{it.weight} 分</Tag>
+                          </div>
+                          <div className="text-slate-600 text-sm flex-1 text-right">{it.desc}</div>
+                        </div>
+                      </List.Item>
+                    )}
+                  />
+                ),
+              },
+              {
+                key: 'iface',
+                label: <span><Tag>合约接口</Tag>你的合约需要提供的方法</span>,
+                children: (
+                  <ul className="list-disc pl-6 text-sm text-slate-700 space-y-1">
+                    {crit.iface.map((x) => <li key={x}><code>{x}</code></li>)}
+                  </ul>
+                ),
+              },
+              {
+                key: 'steps',
+                label: <span><Tag>评测流程</Tag>系统按此顺序在 Ganache 上跑你的合约</span>,
+                children: (
+                  <ol className="list-decimal pl-6 text-sm text-slate-700 space-y-1">
+                    {crit.steps.map((x) => <li key={x}>{x}</li>)}
+                  </ol>
+                ),
+              },
+            ]}
+          />
+        </Card>
+      )}
 
       <Row gutter={16}>
         <Col xs={24} md={12}>
