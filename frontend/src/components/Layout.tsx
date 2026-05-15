@@ -5,6 +5,7 @@ import {
   HomeOutlined, LogoutOutlined, SettingOutlined, TeamOutlined, UserOutlined,
 } from '@ant-design/icons';
 import { useAuth } from '../hooks/useAuth';
+import NotificationBell from './NotificationBell';
 
 const { Header, Sider, Content } = AntLayout;
 
@@ -41,15 +42,18 @@ export default function MainLayout() {
           <AppstoreOutlined style={{ fontSize: 22, color: '#1677ff' }} />
           <span className="text-lg font-semibold">智能合约安全教学与实训平台</span>
         </div>
-        <Dropdown menu={userMenu} placement="bottomRight">
-          <div className="flex items-center gap-2 cursor-pointer">
-            <Avatar style={{ backgroundColor: '#1677ff' }}>
-              {user?.username?.slice(0, 1)?.toUpperCase()}
-            </Avatar>
-            <span className="text-slate-700">{user?.username}</span>
-            <span className="text-slate-400 text-xs">({user?.role})</span>
-          </div>
-        </Dropdown>
+        <div className="flex items-center gap-4">
+          <NotificationBell />
+          <Dropdown menu={userMenu} placement="bottomRight">
+            <div className="flex items-center gap-2 cursor-pointer">
+              <Avatar style={{ backgroundColor: '#1677ff' }}>
+                {user?.username?.slice(0, 1)?.toUpperCase()}
+              </Avatar>
+              <span className="text-slate-700">{user?.username}</span>
+              <span className="text-slate-400 text-xs">({user?.role})</span>
+            </div>
+          </Dropdown>
+        </div>
       </Header>
       <AntLayout>
         <Sider theme="light" width={220} breakpoint="lg" collapsedWidth={0}>

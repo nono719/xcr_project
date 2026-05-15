@@ -1,6 +1,7 @@
-import { Card, Col, Row, Statistic, Table, Tabs, Tag, Button, Modal, Form, Input, Select, InputNumber, message } from 'antd';
+import { Card, Col, Row, Statistic, Table, Tabs, Tag, Button, Modal, Form, Input, Select, InputNumber, DatePicker, message, Space } from 'antd';
 import { useEffect, useState } from 'react';
-import { teacherApi } from '../apis';
+import dayjs from 'dayjs';
+import { notificationsApi, teacherApi } from '../apis';
 
 export default function TeacherDashboardPage() {
   const [tab, setTab] = useState('overview');
@@ -9,11 +10,32 @@ export default function TeacherDashboardPage() {
   const [cases, setCases] = useState<any[]>([]);
   const [editing, setEditing] = useState<any | null>(null);
   const [form] = Form.useForm();
+  const [assignments, setAssignments] = useState<any[]>([]);
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignForm] = Form.useForm();
 
   const load = (k: string) => {
     if (k === 'overview') teacherApi.overview().then((r) => setOverview(r.data));
     if (k === 'students') teacherApi.students().then((r) => setStudents(r.data ?? []));
     if (k === 'cases') teacherApi.cases().then((r) => setCases(r.data ?? []));
+    if (k === 'assignments') teacherApi.assignments().then((r) => setAssignments(r.data ?? []));
+  };
+
+  const submitAssignment = async () => {
+    const v = await assignForm.validateFields();
+    await teacherApi.postAssignment({
+      title: v.title, content: v.content, courseId: v.courseId, caseId: v.caseId,
+      deadline: v.deadline?.toISOString() ?? null,
+    });
+    message.success('已发布');
+    setAssignOpen(false);
+    assignForm.resetFields();
+    load('assignments');
+  };
+
+  const triggerScan = async () => {
+    const r = await notificationsApi.triggerScan();
+    message.success(`已扫描，发出 ${r.data?.inserted ?? 0} 条通知`);
   };
 
   useEffect(() => { load(tab); }, [tab]);
@@ -65,6 +87,49 @@ export default function TeacherDashboardPage() {
                 },
               ]}
             />
+          ),
+        },
+        {
+          key: 'assignments', label: '作业与公告',
+          children: (
+            <Card extra={
+              <Space>
+                <Button onClick={triggerScan}>立即扫描截止</Button>
+                <Button type="primary" onClick={() => { setAssignOpen(true); assignForm.resetFields(); }}>新建作业</Button>
+              </Space>
+            }>
+              <Table
+                rowKey="assignmentId" dataSource={assignments} size="middle"
+                columns={[
+                  { title: 'ID', dataIndex: 'assignmentId', width: 70 },
+                  { title: '标题', dataIndex: 'title' },
+                  { title: '关联案例', dataIndex: 'caseId', width: 100 },
+                  { title: '关联课程', dataIndex: 'courseId', width: 100 },
+                  {
+                    title: '截止时间', dataIndex: 'deadline', width: 180,
+                    render: (v) => v ? new Date(v).toLocaleString() : '-',
+                  },
+                  {
+                    title: '发布时间', dataIndex: 'createTime', width: 180,
+                    render: (v) => new Date(v).toLocaleString(),
+                  },
+                  { title: '老师', dataIndex: 'teacherName', width: 100 },
+                ]}
+              />
+              <Modal open={assignOpen} title="新建作业" onCancel={() => setAssignOpen(false)} onOk={submitAssignment} width={600}>
+                <Form form={assignForm} layout="vertical">
+                  <Form.Item name="title" label="标题" rules={[{ required: true }]}><Input /></Form.Item>
+                  <Form.Item name="content" label="内容"><Input.TextArea rows={3} /></Form.Item>
+                  <Row gutter={12}>
+                    <Col span={12}><Form.Item name="caseId" label="关联案例 ID"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>
+                    <Col span={12}><Form.Item name="courseId" label="关联课程 ID"><InputNumber min={1} style={{ width: '100%' }} /></Form.Item></Col>
+                  </Row>
+                  <Form.Item name="deadline" label="截止时间" rules={[{ required: true, message: '请选择截止时间' }]}>
+                    <DatePicker showTime style={{ width: '100%' }} disabledDate={(d) => d && d < dayjs().startOf('day')} />
+                  </Form.Item>
+                </Form>
+              </Modal>
+            </Card>
           ),
         },
         {

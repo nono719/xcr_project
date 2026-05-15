@@ -25,10 +25,10 @@ const CASES = [
     vulnType: 'overflow',
     swcId: 'SWC-101',
     difficulty: 2,
-    description: '在 batchTransfer 中乘法计算总额时溢出，导致用户花费 0 代币却向多地址打款。',
-    attackGoal: '调用 batchTransfer 触发乘法溢出，使 totalSupply 校验被绕过。',
+    description: '在 batchTransfer 中乘法计算总额时溢出，导致用户花费极少代币却向多地址打款超大金额。',
+    attackGoal: '调用 batchTransfer 触发乘法溢出，使 balanceOf[sender] >= total 检查被绕过。',
     vulnerableCode: C('vulnerable/OverflowToken.sol'),
-    attackTemplate: '',
+    attackTemplate: C('attack/OverflowAttacker.sol'),
     referenceFix: '',
     scoreWeight: 100,
   },
@@ -38,9 +38,9 @@ const CASES = [
     swcId: 'SWC-114',
     difficulty: 2,
     description: '调用 bid 的 secret 在 mempool 公开后，可被搜寻者用更高 gas 价抢先打包。',
-    attackGoal: '分析为何 bid 设计存在抢跑问题，并提交修复（提交-揭示模式）。',
+    attackGoal: '编写抢跑合约，用更高的 bid 金额抢在他人之前出价并成为 highestBidder。',
     vulnerableCode: C('vulnerable/FrontRunnableAuction.sol'),
-    attackTemplate: '',
+    attackTemplate: C('attack/FrontRunner.sol'),
     referenceFix: '',
     scoreWeight: 100,
   },
@@ -49,10 +49,10 @@ const CASES = [
     vulnType: 'dos',
     swcId: 'SWC-113',
     difficulty: 2,
-    description: '受害合约在内部使用 transfer 直接向上一任 king 返还以太币，恶意合约可永久回滚交易。',
-    attackGoal: '部署恶意合约成为 king，使后续 become 调用全部失败。',
+    description: '受害合约在内部使用 transfer 直接向上一任 king 返还以太币，恶意合约可永久回滚后续交易。',
+    attackGoal: '部署恶意合约成为 king，使后续 become 调用全部 revert。',
     vulnerableCode: C('vulnerable/DoSWithRevert.sol'),
-    attackTemplate: '',
+    attackTemplate: C('attack/DoSGriefer.sol'),
     referenceFix: '',
     scoreWeight: 100,
   },
@@ -62,9 +62,9 @@ const CASES = [
     swcId: 'SWC-115',
     difficulty: 1,
     description: 'tx.origin 在嵌套合约调用中仍是原始调用者，攻击者可借助钓鱼合约转走资产。',
-    attackGoal: '构造钓鱼合约诱使 owner 调用，触发 transfer。',
+    attackGoal: '构造钓鱼合约诱使 owner 调用，借 tx.origin 绕过鉴权调用 wallet.transfer。',
     vulnerableCode: C('vulnerable/TxOriginAuth.sol'),
-    attackTemplate: '',
+    attackTemplate: C('attack/TxOriginPhish.sol'),
     referenceFix: '',
     scoreWeight: 100,
   },
@@ -118,9 +118,20 @@ async function main() {
       console.log('seeded course #1 with 5 modules');
     }
 
-    const [casesExist] = await conn.query<any[]>('SELECT COUNT(*) AS n FROM vulnerability_case');
-    if (casesExist[0].n === 0) {
-      for (const c of CASES) {
+    // upsert by name —— 允许重复运行 seed 来刷新案例代码/描述
+    for (const c of CASES) {
+      const [exists] = await conn.query<any[]>(
+        'SELECT caseId FROM vulnerability_case WHERE name=? LIMIT 1', [c.name]);
+      if (exists.length) {
+        await conn.query(
+          `UPDATE vulnerability_case SET
+            vulnType=?,swcId=?,difficulty=?,description=?,attackGoal=?,
+            vulnerableCode=?,attackTemplate=?,referenceFix=?,scoreWeight=?,status=1
+           WHERE caseId=?`,
+          [c.vulnType, c.swcId, c.difficulty, c.description, c.attackGoal,
+            c.vulnerableCode, c.attackTemplate, c.referenceFix, c.scoreWeight,
+            exists[0].caseId]);
+      } else {
         await conn.query(
           `INSERT INTO vulnerability_case
            (name,vulnType,swcId,difficulty,description,attackGoal,vulnerableCode,attackTemplate,referenceFix,scoreWeight,status)
@@ -128,10 +139,8 @@ async function main() {
           [c.name, c.vulnType, c.swcId, c.difficulty, c.description, c.attackGoal,
             c.vulnerableCode, c.attackTemplate, c.referenceFix, c.scoreWeight]);
       }
-      console.log('seeded vulnerability cases:', CASES.length);
-    } else {
-      console.log('cases already exist, skip case seed');
     }
+    console.log('upserted vulnerability cases:', CASES.length);
   } finally {
     conn.release();
     await pool.end();

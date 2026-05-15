@@ -108,6 +108,21 @@ CREATE TABLE IF NOT EXISTS assignment (
   KEY idx_teacher (teacherId)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- 通知表
+CREATE TABLE IF NOT EXISTS notification (
+  notiId BIGINT PRIMARY KEY AUTO_INCREMENT,
+  userId INT NOT NULL,
+  type VARCHAR(40) NOT NULL COMMENT 'assignment_due / system / ...',
+  title VARCHAR(200) NOT NULL,
+  content TEXT,
+  link VARCHAR(200),
+  refId INT NULL,
+  status TINYINT NOT NULL DEFAULT 0 COMMENT '0-未读 1-已读',
+  createTime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_user_ref (userId, type, refId),
+  KEY idx_user_status (userId, status, createTime)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- 操作日志表
 CREATE TABLE IF NOT EXISTS op_log (
   logId BIGINT PRIMARY KEY AUTO_INCREMENT,

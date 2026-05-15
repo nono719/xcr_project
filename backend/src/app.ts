@@ -7,6 +7,7 @@ import evaluationRouter from './routes/evaluation';
 import teacherRouter from './routes/teacher';
 import adminRouter from './routes/admin';
 import statisticsRouter from './routes/statistics';
+import notificationsRouter from './routes/notifications';
 import { errorHandler, notFound } from './middlewares/error';
 
 export function createApp() {
@@ -23,6 +24,7 @@ export function createApp() {
   app.use('/api/teacher', teacherRouter);
   app.use('/api/admin', adminRouter);
   app.use('/api/statistics', statisticsRouter);
+  app.use('/api/notifications', notificationsRouter);
 
   app.use(notFound);
   app.use(errorHandler);

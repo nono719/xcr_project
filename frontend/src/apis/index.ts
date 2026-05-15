@@ -70,3 +70,11 @@ export const adminApi = {
 export const statisticsApi = {
   me: () => api.get('/statistics/me').then((r) => r.data),
 };
+
+export const notificationsApi = {
+  me: (onlyUnread = false) =>
+    api.get('/notifications/me', { params: onlyUnread ? { unread: 1 } : {} }).then((r) => r.data),
+  read: (id: number) => api.post(`/notifications/${id}/read`).then((r) => r.data),
+  readAll: () => api.post('/notifications/read-all').then((r) => r.data),
+  triggerScan: () => api.post('/notifications/trigger-scan').then((r) => r.data),
+};

@@ -2,6 +2,7 @@ import { createApp } from './app';
 import { env } from './config/env';
 import { ping } from './config/db';
 import { logger } from './utils/logger';
+import { startCronJobs } from './services/cron';
 
 async function bootstrap() {
   try {
@@ -11,7 +12,10 @@ async function bootstrap() {
     logger.error('MySQL connection failed', { err: (e as Error).message });
   }
   const app = createApp();
-  app.listen(env.port, () => logger.info(`xcr-backend listening on :${env.port}`));
+  app.listen(env.port, () => {
+    logger.info(`xcr-backend listening on :${env.port}`);
+    startCronJobs();
+  });
 }
 
 bootstrap();
