@@ -20,6 +20,12 @@ export const coursesApi = {
   update: (id: number, data: any) => api.put(`/courses/${id}`, data).then((r) => r.data),
   remove: (id: number) => api.delete(`/courses/${id}`).then((r) => r.data),
   addModule: (data: any) => api.post('/courses/modules', data).then((r) => r.data),
+  updateModule: (id: number, data: any) =>
+    api.put(`/courses/modules/${id}`, data).then((r) => r.data),
+  removeModule: (id: number) =>
+    api.delete(`/courses/modules/${id}`).then((r) => r.data),
+  manageList: () => api.get('/courses/manage/list').then((r) => r.data),
+  manageDetail: (id: number) => api.get(`/courses/manage/${id}`).then((r) => r.data),
 };
 
 export const experimentsApi = {

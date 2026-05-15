@@ -15,13 +15,17 @@ export default function MainLayout() {
   const navigate = useNavigate();
   const loc = useLocation();
 
-  const items = [
+  const items: any[] = [
     { key: '/', icon: <HomeOutlined />, label: <Link to="/">首页</Link> },
     { key: '/courses', icon: <BookOutlined />, label: <Link to="/courses">课程学习</Link> },
     { key: '/experiments', icon: <ExperimentOutlined />, label: <Link to="/experiments">漏洞实验</Link> },
-    { key: '/assignments', icon: <ProfileOutlined />, label: <Link to="/assignments">我的作业</Link> },
-    { key: '/records', icon: <FileTextOutlined />, label: <Link to="/records">我的提交</Link> },
   ];
+  if (user?.role === 'student') {
+    items.push(
+      { key: '/assignments', icon: <ProfileOutlined />, label: <Link to="/assignments">我的作业</Link> },
+      { key: '/records', icon: <FileTextOutlined />, label: <Link to="/records">我的提交</Link> },
+    );
+  }
   if (user?.role === 'teacher' || user?.role === 'admin') {
     items.push({ key: '/teacher', icon: <TeamOutlined />, label: <Link to="/teacher">教师工作台</Link> });
   }

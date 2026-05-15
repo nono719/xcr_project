@@ -95,10 +95,18 @@ router.post('/notifications/broadcast', async (req, res, next) => {
     const content = String(b.content ?? '').trim();
     if (!title) return res.status(400).json({ code: 400, message: '标题必填', data: null });
 
-    // recipients: 'all' | userId[] | undefined
+    // recipients: 'all' | userId[] | undefined —— 始终筛选到学生角色，确保老师/管理员不收到学生作业通知
     let userIds: number[];
     if (Array.isArray(b.recipients) && b.recipients.length) {
-      userIds = b.recipients.map(Number).filter((n: number) => Number.isFinite(n));
+      const requested = b.recipients.map(Number).filter((n: number) => Number.isFinite(n));
+      if (!requested.length) {
+        userIds = [];
+      } else {
+        const [rows] = await pool.query<any[]>(
+          `SELECT userId FROM user WHERE role='student' AND status=0 AND userId IN (?)`,
+          [requested]);
+        userIds = rows.map((r) => r.userId);
+      }
     } else {
       const [rows] = await pool.query<any[]>(
         "SELECT userId FROM user WHERE role='student' AND status=0");

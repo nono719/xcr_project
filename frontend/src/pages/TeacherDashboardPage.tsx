@@ -4,6 +4,7 @@ import { teacherApi } from '../apis';
 import NotificationCompose from '../components/teacher/NotificationCompose';
 import AssignmentCompose from '../components/teacher/AssignmentCompose';
 import SubmissionsDrawer from '../components/teacher/SubmissionsModal';
+import CourseManager from '../components/teacher/CourseManager';
 
 export default function TeacherDashboardPage() {
   const [tab, setTab] = useState('overview');
@@ -72,6 +73,10 @@ export default function TeacherDashboardPage() {
               ]}
             />
           ),
+        },
+        {
+          key: 'course-manage', label: '课程管理',
+          children: <CourseManager />,
         },
         {
           key: 'publish-notice', label: '发通知',

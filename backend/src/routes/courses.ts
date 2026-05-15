@@ -122,4 +122,54 @@ router.post('/modules', authRequired, requireRole('teacher', 'admin'), async (re
   } catch (e) { next(e); }
 });
 
+const moduleUpdateSchema = Joi.object({
+  title: Joi.string().required(),
+  content: Joi.string().allow('').optional(),
+  type: Joi.string().valid('text', 'video', 'code').optional(),
+  orderNo: Joi.number().optional(),
+});
+
+router.put('/modules/:id', authRequired, requireRole('teacher', 'admin'), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const { error, value } = moduleUpdateSchema.validate(req.body);
+    if (error) throw new ApiError(400, error.message);
+    await pool.query(
+      `UPDATE course_module SET title=?, content=?, type=?, orderNo=? WHERE moduleId=?`,
+      [value.title, value.content ?? '', value.type ?? 'text', value.orderNo ?? 0, id]);
+    return ok(res, { updated: true });
+  } catch (e) { next(e); }
+});
+
+router.delete('/modules/:id', authRequired, requireRole('teacher', 'admin'), async (req, res, next) => {
+  try {
+    await pool.query('DELETE FROM course_module WHERE moduleId=?', [Number(req.params.id)]);
+    return ok(res, { deleted: true });
+  } catch (e) { next(e); }
+});
+
+/** 教师专用：返回未发布课程也包含在内的完整列表 */
+router.get('/manage/list', authRequired, requireRole('teacher', 'admin'), async (_req, res, next) => {
+  try {
+    const [rows] = await pool.query<any[]>(
+      `SELECT c.*, u.username AS teacherName,
+              (SELECT COUNT(*) FROM course_module m WHERE m.courseId = c.courseId) AS moduleCount
+       FROM course c LEFT JOIN user u ON u.userId = c.teacherId
+       ORDER BY c.orderNo ASC, c.courseId DESC`);
+    return ok(res, rows);
+  } catch (e) { next(e); }
+});
+
+/** 教师专用：单门课程详情（不限定发布状态）*/
+router.get('/manage/:id', authRequired, requireRole('teacher', 'admin'), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const [crows] = await pool.query<any[]>('SELECT * FROM course WHERE courseId=?', [id]);
+    if (!crows.length) throw new ApiError(404, '课程不存在');
+    const [mods] = await pool.query<any[]>(
+      'SELECT * FROM course_module WHERE courseId=? ORDER BY orderNo ASC, moduleId ASC', [id]);
+    return ok(res, { course: crows[0], modules: mods });
+  } catch (e) { next(e); }
+});
+
 export default router;

@@ -35,8 +35,14 @@ export default function App() {
             <Route path="experiments/:id" element={<ExperimentPage />} />
             <Route path="records" element={<RecordsPage />} />
             <Route path="report/:id" element={<ReportPage />} />
-            <Route path="assignments" element={<MyAssignmentsPage />} />
-            <Route path="assignments/:id" element={<AssignmentDetailPage />} />
+            <Route
+              path="assignments"
+              element={<RoleRoute roles={['student']}><MyAssignmentsPage /></RoleRoute>}
+            />
+            <Route
+              path="assignments/:id"
+              element={<RoleRoute roles={['student']}><AssignmentDetailPage /></RoleRoute>}
+            />
             <Route path="profile" element={<ProfilePage />} />
             <Route
               path="teacher"
