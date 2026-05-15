@@ -87,6 +87,38 @@ router.delete('/cases/:id', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+/** 教师向学生群发通知 (区别于 assignment 自动生成的 due 提醒) */
+router.post('/notifications/broadcast', async (req, res, next) => {
+  try {
+    const b = req.body ?? {};
+    const title = String(b.title ?? '').trim();
+    const content = String(b.content ?? '').trim();
+    if (!title) return res.status(400).json({ code: 400, message: '标题必填', data: null });
+
+    // recipients: 'all' | userId[] | undefined
+    let userIds: number[];
+    if (Array.isArray(b.recipients) && b.recipients.length) {
+      userIds = b.recipients.map(Number).filter((n: number) => Number.isFinite(n));
+    } else {
+      const [rows] = await pool.query<any[]>(
+        "SELECT userId FROM user WHERE role='student' AND status=0");
+      userIds = rows.map((r) => r.userId);
+    }
+
+    const link = b.link ? String(b.link) : null;
+    // refId 留空（MySQL UNIQUE 把多个 NULL 视为不冲突），保证每次广播都能发出
+    let inserted = 0;
+    for (const uid of userIds) {
+      const [r] = await pool.query<any>(
+        `INSERT INTO notification(userId,type,title,content,link,refId)
+         VALUES(?,?,?,?,?,NULL)`,
+        [uid, 'teacher_notice', title, content, link]);
+      if ((r as any).affectedRows) inserted += 1;
+    }
+    return ok(res, { inserted, recipients: userIds.length });
+  } catch (e) { next(e); }
+});
+
 router.get('/assignments', async (_req, res, next) => {
   try {
     const [rows] = await pool.query<any[]>(

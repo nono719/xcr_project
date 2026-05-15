@@ -54,6 +54,8 @@ export const teacherApi = {
   deleteCase: (id: number) => api.delete(`/teacher/cases/${id}`).then((r) => r.data),
   assignments: () => api.get('/teacher/assignments').then((r) => r.data),
   postAssignment: (data: any) => api.post('/teacher/assignments', data).then((r) => r.data),
+  broadcast: (data: { title: string; content?: string; link?: string; recipients?: number[] | 'all' }) =>
+    api.post('/teacher/notifications/broadcast', data).then((r) => r.data),
 };
 
 export const adminApi = {
